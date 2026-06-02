@@ -42,6 +42,7 @@ var S = {
   ]
 };
 var nextId = 7;
+function pad3(n){ return n<10?'00'+n:n<100?'0'+n:String(n); }
 
 // ────────────────────────────────────────
 // HELPERS
@@ -49,7 +50,10 @@ var nextId = 7;
 function fmtR(v){ return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v); }
 function fmtD(s){ return s ? s.split(' ')[0].split('-').reverse().join('/') : '—'; }
 function getC(id){ return CARS.find(function(c){return c.id===id;}) || {name:'—',cor:'#ccc'}; }
-function nowStr(){ return new Date().toISOString().slice(0,16).replace('T',' '); }
+function nowStr(){
+  var d=new Date(), p=function(n){return n<10?'0'+n:String(n);};
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
 function todayStr(){ return new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
 
 function notif(msg,type){
@@ -246,7 +250,11 @@ function renderDash(){
 // ── REQUESTS ──
 function renderReqs(){
   var f = getFiltered();
-  var mine = S.user.role==='solicitante' ? S.reqs.filter(function(r){return r.rid===S.user.id;}) : S.reqs;
+  var mine = S.user.role==='solicitante'
+    ? S.reqs.filter(function(r){return r.rid===S.user.id;})
+    : S.user.role==='transportadora'
+      ? S.reqs.filter(function(r){return ['pending_carrier','approved','completed','rejected_carrier'].indexOf(r.st)>-1;})
+      : S.reqs;
   var statusOpts = Object.keys(SM).map(function(k){ return '<option value="'+k+'"'+(S.fs===k?' selected':'')+'>'+SM[k].l+'</option>'; }).join('');
   var carOpts = CARS.map(function(c){ return '<option value="'+c.id+'"'+(S.fc==c.id?' selected':'')+'>'+c.name+'</option>'; }).join('');
   var rows = f.length===0
@@ -502,13 +510,11 @@ function renderModal(){
 // EVENTS
 // ────────────────────────────────────────
 function bindEvents(){
-  var app = document.getElementById('app');
-
   // login
   document.querySelectorAll('[data-login]').forEach(function(el){
     el.addEventListener('click', function(){
       S.user = USERS.filter(function(u){return u.id===parseInt(el.dataset.login);})[0];
-      S.view = 'dashboard';
+      S.view='dashboard'; S.tab='all'; S.fs=''; S.fc=''; S.q=''; S.modal=null;
       render();
     });
   });
@@ -541,7 +547,7 @@ function bindEvents(){
       e.preventDefault();
       var fd = new FormData(frm);
       var req = {
-        id:'SOL-2025-00'+nextId++,
+        id:'SOL-2025-'+pad3(nextId++),
         mat:fd.get('mat'), orig:fd.get('orig'), dest:fd.get('dest'),
         p:fd.get('p'), cid:parseInt(fd.get('cid')), val:parseFloat(fd.get('val')),
         dt:fd.get('dt'), cc:fd.get('cc'), nt:fd.get('nt'),
@@ -550,7 +556,7 @@ function bindEvents(){
         h:[{ts:nowStr(), a:S.user.name, ac:'Solicitação criada', n:''}]
       };
       S.reqs.unshift(req);
-      S.view='reqs';
+      S.view='reqs'; S.tab='all';
       notif('Solicitação '+req.id+' enviada ao gestor!','s');
       render();
     });
@@ -619,7 +625,13 @@ function bindEvents(){
 
   // filters
   var si = document.getElementById('sinp');
-  if(si) si.addEventListener('input', function(e){ S.q=e.target.value; render(); });
+  if(si) si.addEventListener('input', function(e){
+    var pos=e.target.selectionStart;
+    S.q=e.target.value;
+    render();
+    var ns=document.getElementById('sinp');
+    if(ns){ ns.focus(); ns.setSelectionRange(pos,pos); }
+  });
   var fst = document.getElementById('fst');
   if(fst) fst.addEventListener('change', function(e){ S.fs=e.target.value; render(); });
   var fca = document.getElementById('fca');
