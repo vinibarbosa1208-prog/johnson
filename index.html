@@ -108,6 +108,8 @@ tbody tr:hover td{background:#FAFBFC}
 .b-comp{background:#EDE9FE;color:#4C1D95}
 .b-neut{background:#F3F4F6;color:#374151}
 .b-ok{background:#ECFDF5;color:#065F46}
+.b-transit{background:#EDE9FE;color:#4C1D95}
+.b-transit .bdg-dot{background:#8B5CF6}
 
 /* PRIORITY */
 .pr{display:inline-flex;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid}
@@ -262,10 +264,11 @@ var USERS=[
   {id:4,name:"Higor Ferreira",role:"admin",dept:"Administração do Sistema",cor:"#E30613",ini:"HF"},
 ];
 var CARS=[
-  {id:1,name:"Expressa Log",stars:4.8,cnpj:"12.345.678/0001-90",tel:"(11) 9999-1111",cor:"#059669"},
-  {id:2,name:"Rápido Frete",stars:4.5,cnpj:"98.765.432/0001-10",tel:"(11) 8888-2222",cor:"#2563EB"},
-  {id:3,name:"Nacional Cargas",stars:4.2,cnpj:"11.222.333/0001-44",tel:"(11) 7777-3333",cor:"#D97706"},
-  {id:4,name:"Prime Logística",stars:4.9,cnpj:"55.666.777/0001-55",tel:"(11) 6666-4444",cor:"#7C3AED"},
+  {id:1,name:"Expressa Log",stars:4.8,cnpj:"12.345.678/0001-90",tel:"11999991111",cor:"#059669",vehicles:["moto","van","tres4","toco"],tariffs:{moto:1.20,van:2.50,tres4:3.80,toco:5.20,truck:7.50,carreta:11.00}},
+  {id:2,name:"Rápido Frete",stars:4.5,cnpj:"98.765.432/0001-10",tel:"11888882222",cor:"#2563EB",vehicles:["van","tres4","toco","truck"],tariffs:{moto:1.20,van:2.50,tres4:3.80,toco:5.20,truck:7.50,carreta:11.00}},
+  {id:3,name:"Nacional Cargas",stars:4.2,cnpj:"11.222.333/0001-44",tel:"11777773333",cor:"#D97706",vehicles:["tres4","toco","truck","carreta"],tariffs:{moto:1.20,van:2.50,tres4:3.80,toco:5.20,truck:7.50,carreta:11.00}},
+  {id:4,name:"Prime Logística",stars:4.9,cnpj:"55.666.777/0001-55",tel:"11666664444",cor:"#7C3AED",vehicles:["moto","van","tres4","toco","truck","carreta"],tariffs:{moto:1.20,van:2.50,tres4:3.80,toco:5.20,truck:7.50,carreta:11.00}},
+  {id:5,name:"Tecea Cargo",stars:4.7,cnpj:"XX.XXX.XXX/0001-XX",tel:"1124450214",cor:"#F47920",vehicles:["van","tres4","toco","truck"],tariffs:{}},
 ];
 var SM={
   pending_manager:{l:"Aguardando Gestor",c:"b-pend",col:"#F59E0B"},
@@ -273,6 +276,7 @@ var SM={
   pending_carrier:{l:"Aguardando Transportadora",c:"b-wait",col:"#3B82F6"},
   rejected_carrier:{l:"Recusado p/ Transportadora",c:"b-rej",col:"#EF4444"},
   approved:{l:"Coleta Aprovada",c:"b-appr",col:"#10B981"},
+  in_transit:{l:"Em Trânsito",c:"b-transit",col:"#8B5CF6"},
   completed:{l:"Concluído",c:"b-comp",col:"#8B5CF6"},
   canceled:{l:"Cancelado",c:"b-neut",col:"#9CA3AF"},
 };
@@ -282,7 +286,7 @@ var PM={
   high:{l:"Alta",c:"pr-h",col:"#F59E0B"},
   urgent:{l:"Urgente",c:"pr-u",col:"#EF4444"},
 };
-var S={user:null,view:"dashboard",modal:null,fs:"",fc:"",q:"",tab:"all",reqs:[
+var S={user:null,view:"dashboard",modal:null,fs:"",fc:"",q:"",tab:"all",waAlert:null,driverToken:null,collectPhotoPreview:null,deliveryPhotoPreview:null,reqs:[
   {id:"SOL-001",mat:"Rolamento SKF 6205 2RS C3",orig:"Filial São Paulo",dest:"Planta Industrial RJ",p:"urgent",cid:1,val:450,dt:"2025-06-15",cc:"CC-MAN-101",nt:"Peça crítica — parada de linha iminente.",rid:1,rn:"Carlos Mendes",dep:"Manutenção Industrial",st:"pending_manager",cd:"2025-05-10 08:32",h:[{ts:"2025-05-10 08:32",a:"Carlos Mendes",ac:"Solicitação criada",n:""}]},
   {id:"SOL-002",mat:"Válvula Hidráulica Parker VSD-200",orig:"Fornecedor BH MG",dest:"Planta Industrial SP",p:"high",cid:2,val:680,dt:"2025-06-18",cc:"CC-OPS-202",nt:"Substituição preventiva plano Q2.",rid:1,rn:"Carlos Mendes",dep:"Manutenção Industrial",st:"pending_carrier",cd:"2025-05-08 14:15",h:[{ts:"2025-05-08 14:15",a:"Carlos Mendes",ac:"Solicitação criada",n:""},{ts:"2025-05-09 09:00",a:"Ana Paula Costa",ac:"Aprovado pelo Gestor",n:"Prioritário. Liberar imediatamente."}]},
   {id:"SOL-003",mat:"Motor Elétrico WEG W22 5CV Trifásico",orig:"Depósito Porto Alegre RS",dest:"Filial São Paulo",p:"normal",cid:3,val:1200,dt:"2025-06-20",cc:"CC-ENG-303",nt:"",rid:1,rn:"Carlos Mendes",dep:"Manutenção Industrial",st:"approved",cd:"2025-05-07 11:00",h:[{ts:"2025-05-07 11:00",a:"Carlos Mendes",ac:"Solicitação criada",n:""},{ts:"2025-05-08 08:30",a:"Ana Paula Costa",ac:"Aprovado pelo Gestor",n:"Aprovado."},{ts:"2025-05-08 16:00",a:"Nacional Cargas",ac:"Coleta aceita",n:""}]},
@@ -291,6 +295,124 @@ var S={user:null,view:"dashboard",modal:null,fs:"",fc:"",q:"",tab:"all",reqs:[
   {id:"SOL-006",mat:"Sensor de Temperatura Pt100 Classe A",orig:"Filial Rio de Janeiro",dest:"Planta Industrial SP",p:"high",cid:2,val:320,dt:"2025-06-16",cc:"CC-INS-505",nt:"",rid:1,rn:"Carlos Mendes",dep:"Manutenção Industrial",st:"pending_manager",cd:"2025-05-11 07:00",h:[{ts:"2025-05-11 07:00",a:"Carlos Mendes",ac:"Solicitação criada",n:""}]},
 ]};
 var nextId=7;
+var FREIGHT_TABLE=[
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Grande SP',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Arujá',uf:'SP',value:1118.08},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Guarulhos',uf:'SP',value:1118.08},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Jundiaí',uf:'SP',value:2267.07},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Santos',uf:'SP',value:2267.07},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Vinhedo',uf:'SP',value:2630.77},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Itatiba',uf:'SP',value:2280.00},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Indaiatuba',uf:'SP',value:2630.77},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Sorocaba',uf:'SP',value:2630.77},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Salto',uf:'SP',value:2630.77},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Jaguariúna',uf:'SP',value:2630.77},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Santa Barbara',uf:'SP',value:2630.77},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Piracicaba',uf:'SP',value:2630.77},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Botucatu',uf:'SP',value:3420.00},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Rio de Janeiro',uf:'RJ',value:3420.00},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Curitiba',uf:'PR',value:8696.11},
+  {carrier:'Tecea Cargo',vehicle:'truck',dest:'Betim',uf:'MG',value:8696.11},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Grande SP',uf:'SP',value:1326.98},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Arujá',uf:'SP',value:1118.08},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Guarulhos',uf:'SP',value:1118.08},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Jundiaí',uf:'SP',value:1522.24},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Santos',uf:'SP',value:1522.24},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Vinhedo',uf:'SP',value:2088.90},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Itatiba',uf:'SP',value:1520.00},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Indaiatuba',uf:'SP',value:2088.90},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Sorocaba',uf:'SP',value:2088.90},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Salto',uf:'SP',value:2088.90},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Jaguariúna',uf:'SP',value:2088.90},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Santa Barbara',uf:'SP',value:2088.90},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Piracicaba',uf:'SP',value:2088.90},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Botucatu',uf:'SP',value:2470.00},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Rio de Janeiro',uf:'RJ',value:3458.00},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Curitiba',uf:'PR',value:8696.11},
+  {carrier:'Tecea Cargo',vehicle:'toco',dest:'Betim',uf:'MG',value:8696.11},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Grande SP',uf:'SP',value:855.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Arujá',uf:'SP',value:665.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Guarulhos',uf:'SP',value:665.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Jundiaí',uf:'SP',value:1235.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Santos',uf:'SP',value:1235.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Vinhedo',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Itatiba',uf:'SP',value:1330.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Indaiatuba',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Sorocaba',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Salto',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Jaguariúna',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Santa Barbara',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Piracicaba',uf:'SP',value:1607.69},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Botucatu',uf:'SP',value:1805.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Rio de Janeiro',uf:'RJ',value:2717.00},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Curitiba',uf:'PR',value:8193.75},
+  {carrier:'Tecea Cargo',vehicle:'tres4',dest:'Betim',uf:'MG',value:8193.75},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Grande SP',uf:'SP',value:657.69},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Arujá',uf:'SP',value:475.01},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Guarulhos',uf:'SP',value:475.01},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Jundiaí',uf:'SP',value:759.99},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Santos',uf:'SP',value:932.65},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Vinhedo',uf:'SP',value:932.65},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Itatiba',uf:'SP',value:932.65},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Indaiatuba',uf:'SP',value:932.65},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Sorocaba',uf:'SP',value:932.65},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Salto',uf:'SP',value:932.65},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Jaguariúna',uf:'SP',value:1045.00},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Santa Barbara',uf:'SP',value:932.65},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Piracicaba',uf:'SP',value:1045.00},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Botucatu',uf:'SP',value:1140.00},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Rio de Janeiro',uf:'RJ',value:1729.00},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Curitiba',uf:'PR',value:2841.54},
+  {carrier:'Tecea Cargo',vehicle:'van',dest:'Betim',uf:'MG',value:2841.54},
+];
+function getSuggestedFreight(destCity,destUF,vehicleType){
+  var city=destCity.trim().toLowerCase();
+  var match=FREIGHT_TABLE.filter(function(f){
+    return f.vehicle===vehicleType&&f.uf===destUF&&f.dest.toLowerCase().indexOf(city)>-1;
+  })[0];
+  if(!match){
+    var byUF=FREIGHT_TABLE.filter(function(f){return f.vehicle===vehicleType&&f.uf===destUF;});
+    if(byUF.length>0){
+      var avg=byUF.reduce(function(s,f){return s+f.value;},0)/byUF.length;
+      return{value:avg,matched:false,note:'Estimativa para '+destUF+' (cidade não cadastrada)'};
+    }
+    return null;
+  }
+  return{value:match.value,matched:true,note:'Tabela Tecea Cargo — '+match.dest+'/'+match.uf};
+}
+function updateFreightSuggestion(){
+  var frRes=document.getElementById('freight-result');
+  if(!frRes)return;
+  var cidade=(document.getElementById('dest-cidade')||{value:''}).value||'';
+  var uf=(document.getElementById('dest-uf')||{value:''}).value||'';
+  var veiculo=S._vehicle;
+  if(!cidade||!uf||!veiculo){frRes.style.display='none';return;}
+  var sug=getSuggestedFreight(cidade,uf,veiculo.type);
+  var valInp=document.querySelector('#nform [name="val"]');
+  if(!sug){
+    frRes.style.display='block';
+    frRes.innerHTML='<div style="padding:10px 13px;background:#FEF2F2;border-radius:8px;border:1px solid #FECACA;font-size:12.5px;color:#991B1B">Nenhuma entrada na tabela para '+cidade+'/'+uf+' ('+veiculo.label+'). Preencha o valor manualmente.</div>';
+    return;
+  }
+  if(valInp)valInp.value=sug.value.toFixed(2);
+  frRes.style.display='block';
+  frRes.innerHTML='<div style="padding:13px 15px;background:#FFF5F0;border-radius:10px;border:1.5px solid #F47920">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'+
+    '<div>'+
+    '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94A3B8;margin-bottom:6px">Sugestão de Frete</div>'+
+    '<div style="font-size:12.5px;margin-bottom:3px"><strong>Transportadora sugerida:</strong> Tecea Cargo</div>'+
+    '<div style="font-size:12.5px;margin-bottom:3px"><strong>Veículo:</strong> '+veiculo.label+'</div>'+
+    '<div style="font-size:12.5px;margin-bottom:3px"><strong>Destino consultado:</strong> '+cidade+'/'+uf+'</div>'+
+    '<div style="font-size:11px;color:#64748B;margin-top:4px">'+sug.note+'</div>'+
+    '</div>'+
+    '<div style="text-align:right;flex-shrink:0">'+
+    '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#94A3B8;margin-bottom:4px">Preço Sugerido</div>'+
+    '<div style="font-size:24px;font-weight:800;color:#F47920;letter-spacing:-1px">'+R(sug.value)+'</div>'+
+    '</div>'+
+    '</div>'+
+    '<div style="margin-top:10px;font-size:10.5px;color:#94A3B8;border-top:1px solid #FED7AA;padding-top:8px">⚠️ Valor sugerido com base na tabela vigente (Tecea Cargo, proposta 02-2024). Pedágio não incluso (item 2.3). Confirme com a transportadora antes de aprovar.</div>'+
+    '</div>';
+}
 function R(v){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(v);}
 function D(s){return s?s.split(" ")[0].split("-").reverse().join("/"):"—";}
 function C(id){return CARS.filter(function(c){return c.id===id;})[0]||{name:"—",cor:"#ccc"};}
@@ -306,20 +428,20 @@ function notif(msg,t){
 function filt(){
   var r=S.reqs.slice();
   if(S.user.role==="solicitante")r=r.filter(function(x){return x.rid===S.user.id;});
-  if(S.user.role==="transportadora")r=r.filter(function(x){return["pending_carrier","approved","completed","rejected_carrier"].indexOf(x.st)>-1;});
+  if(S.user.role==="transportadora")r=r.filter(function(x){return["pending_carrier","approved","in_transit","completed","rejected_carrier"].indexOf(x.st)>-1;});
   if(S.fs)r=r.filter(function(x){return x.st===S.fs;});
   if(S.fc)r=r.filter(function(x){return x.cid===parseInt(S.fc);});
   if(S.q){var q=S.q.toLowerCase();r=r.filter(function(x){return x.mat.toLowerCase().indexOf(q)>-1||x.id.indexOf(q)>-1||x.rn.toLowerCase().indexOf(q)>-1;});}
   if(S.tab==="pending")r=r.filter(function(x){return x.st==="pending_manager";});
-  if(S.tab==="active")r=r.filter(function(x){return x.st==="pending_carrier"||x.st==="approved";});
+  if(S.tab==="active")r=r.filter(function(x){return x.st==="pending_carrier"||x.st==="approved"||x.st==="in_transit";});
   if(S.tab==="done")r=r.filter(function(x){return["completed","rejected_manager","rejected_carrier","canceled"].indexOf(x.st)>-1;});
   return r;
 }
-function go(v){S.view=v;S.tab="all";render();}
+function go(v){S.view=v;S.tab="all";S.waAlert=null;render();}
 function render(){
   var el=document.getElementById("app");
   if(!el)return;
-  el.innerHTML=S.user?shell():login();
+  el.innerHTML=(S.view==='driver')?vDriver():(S.user?shell():login());
   // Attach tab clicks via delegation (avoids quote conflicts in JS strings)
   document.querySelectorAll("[data-tab]").forEach(function(t){
     t.addEventListener("click",function(){S.tab=t.dataset.tab;render();});
@@ -403,7 +525,34 @@ function bdg(cls,col,txt){return '<span class="bdg '+cls+'">'+dot(col)+txt+"</sp
 function pr(cls,txt){return '<span class="pr '+cls+'">'+txt+"</span>";}
 function vDash(){
   var all=S.reqs,u=S.user;
-  var mine=u.role==="solicitante"?all.filter(function(r){return r.rid===u.id;}):all;
+  if(u.role==='solicitante'){
+    var mine=all.filter(function(r){return r.rid===u.id;});
+    var tot=mine.length;
+    var pend=mine.filter(function(r){return r.st==='pending_manager'||r.st==='pending_carrier';}).length;
+    var appr=mine.filter(function(r){return r.st==='approved'||r.st==='in_transit'||r.st==='completed';}).length;
+    var rej=mine.filter(function(r){return r.st==='rejected_manager'||r.st==='rejected_carrier';}).length;
+    var recent=mine.slice().sort(function(a,b){return b.cd.localeCompare(a.cd);}).slice(0,5);
+    var rows=recent.length===0?'<tr><td colspan="5" style="text-align:center;padding:24px;color:#64748B">Nenhuma solicitação</td></tr>':
+      recent.map(function(r){
+        var s=SM[r.st]||{};
+        return'<tr><td><span class="mono">'+r.id+'</span></td>'+
+          '<td class="bold" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.mat+'</td>'+
+          '<td>'+bdg(s.c,s.col,s.l)+'</td>'+
+          '<td style="color:#94A3B8">'+D(r.cd)+'</td>'+
+          '<td><button class="btn btn-g btn-xs" onclick="openModal(this.dataset.id)" data-id="'+r.id+'">Ver</button></td>'+
+          '</tr>';
+      }).join('');
+    return'<div class="mrow">'+
+      '<div class="mcard mc-b"><div class="mc-ico" style="background:#EFF6FF">📋</div><div class="mc-lbl">Minhas Solicitações</div><div class="mc-val">'+tot+'</div></div>'+
+      '<div class="mcard mc-a"><div class="mc-ico" style="background:#FFFBEB">⏳</div><div class="mc-lbl">Pendentes</div><div class="mc-val" style="'+(pend>0?'color:#D97706':'')+'">'+pend+'</div></div>'+
+      '<div class="mcard mc-g"><div class="mc-ico" style="background:#ECFDF5">✅</div><div class="mc-lbl">Aprovadas</div><div class="mc-val">'+appr+'</div></div>'+
+      '<div class="mcard mc-r"><div class="mc-ico" style="background:#FEF2F2">❌</div><div class="mc-lbl">Reprovadas</div><div class="mc-val" style="'+(rej>0?'color:#DC2626':'')+'">'+rej+'</div></div>'+
+      '</div>'+
+      '<div class="card"><div class="c-head"><div class="c-title">Últimas Solicitações</div>'+
+      '<button class="btn btn-g btn-sm" onclick="go(&quot;reqs&quot;)">Ver todas →</button></div>'+
+      '<div class="tw"><table><thead><tr><th>ID</th><th>Material</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+  }
+  var mine=all;
   var spent=mine.filter(function(r){return r.st==="approved"||r.st==="completed";}).reduce(function(s,r){return s+r.val;},0);
   var pend=mine.filter(function(r){return r.st==="pending_manager";}).length;
   var ok=mine.filter(function(r){return r.st==="approved"||r.st==="completed";}).length;
@@ -508,7 +657,20 @@ function vApprove(){
       '<button class="btn btn-g btn-sm" onclick="openModal(this.dataset.id)" data-id="'+r.id+'">Detalhes</button>'+
       "</div></div>";
   }).join("");
-  return'<div class="alert al-w">⏳ <strong>'+pend.length+"</strong> solicitação(ões) aguardando sua aprovação.</div>"+cards;
+  var waBar='';
+  if(S.waAlert){
+    var wr=S.reqs.filter(function(x){return x.id===S.waAlert;})[0];
+    var wc=wr?C(wr.cid):null;
+    if(wr&&wc){
+      var waMsg=encodeURIComponent('Olá! A solicitação '+wr.id+' ('+wr.mat+') foi APROVADA e encaminhada para a transportadora '+wc.name+'. Rota: '+wr.orig+' → '+wr.dest+'. Valor: '+R(wr.val)+'.');
+      var waLink='https://wa.me/55'+wc.tel.replace(/\D/g,'')+'?text='+waMsg;
+      waBar='<div class="alert al-s" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'+
+        '<span>✅ Solicitação <strong>'+wr.id+'</strong> aprovada e enviada à transportadora.</span>'+
+        '<a href="'+waLink+'" target="_blank" class="btn btn-s btn-sm" style="background:#25D366;border-color:#25D366;text-decoration:none">📲 Notificar via WhatsApp</a>'+
+        '</div>';
+    }
+  }
+  return waBar+'<div class="alert al-w">⏳ <strong>'+pend.length+"</strong> solicitação(ões) aguardando sua aprovação.</div>"+cards;
 }
 function vQueue(){
   var q=S.reqs.filter(function(r){return r.st==="pending_carrier";});
@@ -641,13 +803,13 @@ function vNew(){
     '<div class="fgrp"><label class="flbl">Largura (cm) <em>*</em></label><input class="finp" id="dim-larg" type="number" min="1" placeholder="Ex: 40" oninput="calcDims()" required></div>'+
     '<div class="fgrp"><label class="flbl">Altura (cm) <em>*</em></label><input class="finp" id="dim-alt" type="number" min="1" placeholder="Ex: 30" oninput="calcDims()" required></div>'+
     '<div class="fgrp"><label class="flbl">Peso (kg) <em>*</em></label><input class="finp" id="dim-peso" type="number" min="0.1" step="0.1" placeholder="Ex: 5.5" oninput="calcDims()" required></div>'+
-    '</div><div id="dim-result" style="display:none;margin-top:10px"></div></div>'+
+    '</div><div id="dim-result" style="display:none;margin-top:10px"></div><div id="freight-result" style="display:none;margin-top:10px"></div></div>'+
     '<div class="fsec"><div class="fsec-title">Configuração do Frete</div>'+
     '<div class="fgrid">'+
     '<div class="fgrp"><label class="flbl">Prioridade <em>*</em></label><select class="fsel" name="p"><option value="low">Baixa</option><option value="normal" selected>Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>'+
     '<div class="fgrp"><label class="flbl">Data Desejada <em>*</em></label><input class="finp" name="dt" type="date" required></div>'+
     '<div class="fgrp"><label class="flbl">Transportadora <em>*</em></label><select class="fsel" name="cid">'+cOpts+'</select></div>'+
-    '<div class="fgrp"><label class="flbl">Valor do Frete (R$) <em>*</em></label><input class="finp" name="val" type="number" step="0.01" min="0" placeholder="350.00" required></div>'+
+    '<div class="fgrp"><label class="flbl">Preço Sugerido (R$) <em>*</em></label><input class="finp" name="val" type="number" step="0.01" min="0" placeholder="350.00" required></div>'+
     '<div class="fgrp"><label class="flbl">Centro de Custo</label><input class="finp" name="cc" placeholder="Ex: CC-MAN-101 (opcional)"></div>'+
     '<div class="fgrp"><label class="flbl">Solicitante</label><input class="finp" value="'+u.name+'" disabled></div>'+
     '</div></div>'+
@@ -665,7 +827,8 @@ function submitForm(e){
   var destObj={cep:gv('dest-cep'),rua:gv('dest-rua'),num:gv('dest-num'),comp:gv('dest-comp'),bairro:gv('dest-bairro'),cidade:gv('dest-cidade'),uf:gv('dest-uf')};
   var origStr=origObj.rua+' '+origObj.num+(origObj.comp?' '+origObj.comp:'')+', '+origObj.bairro+', '+origObj.cidade+'/'+origObj.uf;
   var destStr=destObj.rua+' '+destObj.num+(destObj.comp?' '+destObj.comp:'')+', '+destObj.bairro+', '+destObj.cidade+'/'+destObj.uf;
-  var req={id:"SOL-00"+nextId++,mat:fd.get("mat"),orig:origStr,dest:destStr,origObj:origObj,destObj:destObj,p:fd.get("p"),cid:parseInt(fd.get("cid")),val:parseFloat(fd.get("val")),dt:fd.get("dt"),cc:fd.get("cc")||"",nt:fd.get("nt")||"",rid:S.user.id,rn:S.user.name,dep:S.user.dept,st:"pending_manager",cd:nowStr(),h:[{ts:nowStr(),a:S.user.name,ac:"Solicitação criada",n:""}]};
+  var vehEl=document.getElementById('veh');var vehicleLabel=vehEl?vehEl.options[vehEl.selectedIndex].text:'';
+  var req={id:"SOL-00"+nextId++,mat:fd.get("mat"),orig:origStr,dest:destStr,origObj:origObj,destObj:destObj,p:fd.get("p"),cid:parseInt(fd.get("cid")),val:parseFloat(fd.get("val")),dt:fd.get("dt"),cc:fd.get("cc")||"",nt:fd.get("nt")||"",rid:S.user.id,rn:S.user.name,dep:S.user.dept,vehicleLabel:vehicleLabel,st:"pending_manager",cd:nowStr(),h:[{ts:nowStr(),a:S.user.name,ac:"Solicitação criada",n:""}]};
   S.reqs.unshift(req);
   S.view="reqs";
   notif("Solicitação "+req.id+" enviada ao gestor!","s");
@@ -674,6 +837,7 @@ function submitForm(e){
 function approveReq(id){
   var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
   r.st="pending_carrier";r.h.push({ts:nowStr(),a:S.user.name,ac:"Aprovado pelo Gestor",n:""});
+  S.waAlert=id;
   notif("Solicitação "+id+" aprovada!","s");render();
 }
 function rejectMgr(id){
@@ -726,16 +890,89 @@ function vModal(){
   var u=S.user;
   var canA=r.st==="pending_manager"&&u.role==="gestor";
   var canC=r.st==="pending_carrier"&&u.role==="transportadora";
+  var isTransp=u.role==="transportadora";
+
+  // Transportadora: view simplificada
+  if(isTransp){
+    var footBtns="";
+    if(canC)footBtns='<button class="btn btn-s" onclick="modalCarrierAccept()">✓ Aceitar Coleta</button><button class="btn btn-d" onclick="modalCarrierReject()">✕ Recusar</button>';
+    var driverSection='';
+    if(r.st==='approved'||r.st==='in_transit'||r.st==='completed'){
+      if(r.driverName){
+        var driverWAMsg=encodeURIComponent('Olá '+r.driverName+'! Você tem uma coleta confirmada. ID: '+r.id+' | Rota: '+r.orig+' → '+r.dest+' | Token: '+r.driverToken);
+        var driverWALink='https://wa.me/55'+r.driverPhone.replace(/\D/g,'')+'?text='+driverWAMsg;
+        driverSection='<div style="margin-top:14px;padding:12px;background:#F0FDF4;border-radius:7px;border:1px solid #BBF7D0">'+
+          '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#15803D;margin-bottom:8px">Motorista Designado</div>'+
+          '<div class="dg">'+
+          '<div class="dr"><div class="dk">Nome</div><div class="dv">'+r.driverName+'</div></div>'+
+          '<div class="dr"><div class="dk">Telefone</div><div class="dv">'+r.driverPhone+'</div></div>'+
+          '<div class="dr"><div class="dk">Token</div><div class="dv"><span class="mono">'+r.driverToken+'</span></div></div>'+
+          '</div>'+
+          '<a href="'+driverWALink+'" target="_blank" class="btn btn-s btn-sm" style="margin-top:8px;background:#25D366;border-color:#25D366;text-decoration:none;display:inline-block">📲 WhatsApp Motorista</a>'+
+          '</div>';
+      } else {
+        driverSection='<div style="margin-top:14px;padding:12px;background:#F8FAFC;border-radius:7px;border:1px solid #E2E8F0">'+
+          '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#94A3B8;margin-bottom:8px">Designar Motorista</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+          '<div><div class="flbl">Nome do Motorista</div><input class="finp" id="drv-name" placeholder="Nome completo"></div>'+
+          '<div><div class="flbl">Telefone (WhatsApp)</div><input class="finp" id="drv-phone" placeholder="11 99999-9999"></div>'+
+          '</div>'+
+          '<button class="btn btn-s btn-sm" style="margin-top:8px" onclick="saveDriver(\''+r.id+'\')">Salvar Motorista</button>'+
+          '</div>';
+      }
+    }
+    return'<div class="m-ov" onclick="if(event.target===this)closeModal()">'+
+      '<div class="m-box">'+
+      '<div class="m-head"><div><div class="m-title">'+r.mat+'</div><div style="font-size:10.5px;color:#64748B;margin-top:2px;font-family:monospace">'+r.id+'</div></div>'+
+      '<button class="btn btn-g btn-sm" onclick="closeModal()">✕</button></div>'+
+      '<div class="m-body">'+
+      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:14px">'+bdg(s.c,s.col,s.l)+pr(p.c,p.l)+'</div>'+
+      '<div class="dg">'+
+      '<div class="dr"><div class="dk">Material</div><div class="dv">'+r.mat+'</div></div>'+
+      '<div class="dr"><div class="dk">Origem</div><div class="dv">'+r.orig+'</div></div>'+
+      '<div class="dr"><div class="dk">Destino</div><div class="dv">'+r.dest+'</div></div>'+
+      '<div class="dr"><div class="dk">Valor</div><div class="dv" style="font-size:15px;font-weight:800;color:#2563EB">'+R(r.val)+'</div></div>'+
+      '<div class="dr"><div class="dk">Data Desejada</div><div class="dv">'+D(r.dt)+'</div></div>'+
+      (r.vehicleLabel?'<div class="dr"><div class="dk">Veículo</div><div class="dv">'+r.vehicleLabel+'</div></div>':'')+
+      '</div>'+
+      driverSection+
+      '</div>'+
+      '<div class="m-foot">'+footBtns+'<button class="btn btn-g" onclick="closeModal()">Fechar</button></div>'+
+      '</div></div>';
+  }
+
+  // Demais perfis: view completa
   var tl=r.h.map(function(h){
     var g=h.ac.indexOf("Aprovado")>-1||h.ac.indexOf("aceita")>-1||h.ac.indexOf("concluída")>-1;
     var rd=h.ac.indexOf("Reprovado")>-1||h.ac.indexOf("Recusado")>-1;
     var dc=g?"dot-ok":rd?"dot-no":"dot-new";
-    return'<div class="tli"><div class="tld '+dc+'">'+(g?"✓":rd?"✕":"·")+"</div>"+
+    return'<div class="tli"><div class="tld '+dc+'">'+(g?"✓":rd?"✕":"·")+'</div>'+
       '<div class="tlb"><div class="tla2">'+h.ac+'</div><div class="tlm">'+h.a+" · "+h.ts+"</div>"+(h.n?'<div class="tln">'+h.n+"</div>":"")+"</div></div>";
   }).join("");
   var footBtns="";
   if(canA)footBtns='<button class="btn btn-s" onclick="modalApprove()">✓ Aprovar</button><button class="btn btn-d" onclick="modalReject()">✕ Reprovar</button>';
-  if(canC)footBtns='<button class="btn btn-s" onclick="modalCarrierAccept()">✓ Aceitar Coleta</button><button class="btn btn-d" onclick="modalCarrierReject()">✕ Recusar</button>';
+
+  // Seção de evidências (todos exceto transportadora)
+  var evidSection='';
+  if(r.st==='in_transit'||r.st==='completed'){
+    evidSection='<div style="margin-top:16px">'+
+      '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#94A3B8;margin-bottom:10px">Evidências de Entrega</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+      '<div style="padding:12px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;text-align:center">'+
+      '<div style="font-size:11.5px;font-weight:600;color:#475569;margin-bottom:8px">📷 Foto de Coleta</div>'+
+      (r.collectPhoto
+        ?'<div style="font-size:11px;color:#10B981;font-weight:600">✓ '+r.collectPhoto+'</div>'
+        :'<div style="font-size:11px;color:#94A3B8">Sem foto registrada</div>')+
+      '</div>'+
+      '<div style="padding:12px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;text-align:center">'+
+      '<div style="font-size:11.5px;font-weight:600;color:#475569;margin-bottom:8px">📷 Foto de Entrega</div>'+
+      (r.deliveryPhoto
+        ?'<div style="font-size:11px;color:#10B981;font-weight:600">✓ '+r.deliveryPhoto+'</div>'
+        :'<div style="font-size:11px;color:#94A3B8">Sem foto registrada</div>')+
+      '</div>'+
+      '</div></div>';
+  }
+
   return'<div class="m-ov" onclick="if(event.target===this)closeModal()">'+
     '<div class="m-box">'+
     '<div class="m-head"><div><div class="m-title">'+r.mat+'</div><div style="font-size:10.5px;color:#64748B;margin-top:2px;font-family:monospace">'+r.id+"</div></div>"+
@@ -754,6 +991,7 @@ function vModal(){
     '<div class="dr"><div class="dk">Criado em</div><div class="dv">'+r.cd+"</div></div>"+
     "</div>"+
     (r.nt?'<div style="margin:12px 0;padding:9px 12px;background:#EFF6FF;border-radius:7px;font-size:12.5px;color:#1E40AF;border-left:3px solid #3B82F6"><strong>Obs:</strong> '+r.nt+"</div>":"")+
+    evidSection+
     '<div style="margin-top:16px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#94A3B8;margin-bottom:11px">Linha do Tempo</div>'+
     '<div class="tl">'+tl+"</div></div>"+
     (canA?'<div style="margin-top:14px;padding:12px;background:#F8FAFC;border-radius:7px;border:1px solid #E2E8F0"><div class="flbl" style="margin-bottom:6px">Observação do Gestor</div><textarea class="ftxt" id="mobs" placeholder="Justificativa..."></textarea></div>':"")+"</div>"+
@@ -762,6 +1000,114 @@ function vModal(){
 }
 function clearFilters(){S.fs='';S.fc='';S.q='';render();}
 function setTab(t){S.tab=t;render();}
+function fmtPhone(v){v=v.replace(/\D/g,'').slice(0,11);if(v.length>6)v=v.slice(0,2)+' '+v.slice(2,7)+'-'+v.slice(7);else if(v.length>2)v=v.slice(0,2)+' '+v.slice(2);return v;}
+function saveDriver(id){
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
+  var nm=(document.getElementById('drv-name')||{}).value||'';
+  var ph=(document.getElementById('drv-phone')||{}).value||'';
+  if(!nm||!ph){notif('Preencha nome e telefone do motorista.','e');return;}
+  r.driverName=nm;r.driverPhone=ph;
+  r.driverToken='TK'+Math.random().toString(36).substr(2,6).toUpperCase();
+  r.h.push({ts:nowStr(),a:S.user.name,ac:'Motorista designado: '+nm,n:''});
+  notif('Motorista '+nm+' designado. Token: '+r.driverToken,'s');render();
+}
+function sendDriverWhatsApp(id){
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r||!r.driverPhone)return;
+  var link=window.location.href.split('?')[0]+'?driver='+r.driverToken;
+  var msg=encodeURIComponent('Olá '+r.driverName+'! Você tem uma coleta.\nRota: '+r.orig+' → '+r.dest+'\nToken: '+r.driverToken+'\nAcesse: '+link);
+  window.open('https://wa.me/55'+r.driverPhone.replace(/\D/g,'')+'?text='+msg,'_blank');
+}
+function notifyCarrierWA(id){
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
+  var c=C(r.cid);if(!c)return;
+  var msg=encodeURIComponent('Olá '+c.name+'! Nova coleta disponível.\nID: '+r.id+'\nMaterial: '+r.mat+'\nRota: '+r.orig+' → '+r.dest+'\nValor: '+R(r.val));
+  window.open('https://wa.me/55'+c.tel.replace(/\D/g,'')+'?text='+msg,'_blank');
+}
+function onCollectPhoto(input,id){
+  if(!input.files||!input.files[0])return;
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
+  r.collectPhoto=input.files[0].name;
+  S.collectPhotoPreview=URL.createObjectURL(input.files[0]);
+  var prev=document.getElementById('collect-prev');
+  if(prev)prev.innerHTML='<div style="font-size:11px;color:#10B981;font-weight:600;margin-top:4px">✓ '+r.collectPhoto+'</div>';
+  checkDeliveryReady(id);
+}
+function onDeliveryPhoto(input,id){
+  if(!input.files||!input.files[0])return;
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
+  r.deliveryPhoto=input.files[0].name;
+  S.deliveryPhotoPreview=URL.createObjectURL(input.files[0]);
+  var prev=document.getElementById('delivery-prev');
+  if(prev)prev.innerHTML='<div style="font-size:11px;color:#10B981;font-weight:600;margin-top:4px">✓ '+r.deliveryPhoto+'</div>';
+  checkDeliveryReady(id);
+}
+function checkDeliveryReady(id){
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
+  var btn=document.getElementById('confirm-delivery-btn');
+  if(btn)btn.disabled=!(r.collectPhoto&&r.deliveryPhoto);
+}
+function confirmCollect(id){
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
+  r.st='in_transit';r.h.push({ts:nowStr(),a:'Motorista',ac:'Coleta confirmada',n:''});
+  notif('Coleta confirmada! Carga em trânsito.','s');render();
+}
+function confirmDelivery(id){
+  var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
+  if(!r.collectPhoto||!r.deliveryPhoto){notif('Adicione foto de coleta e entrega antes de confirmar.','e');return;}
+  r.st='completed';r.h.push({ts:nowStr(),a:'Motorista',ac:'Entrega concluída',n:''});
+  notif('Entrega concluída com sucesso!','s');render();
+}
+function vDriver(){
+  var token=S.driverToken;
+  var r=token?S.reqs.filter(function(x){return x.driverToken===token;})[0]:null;
+  if(!r)return'<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#F8FAFC">'+
+    '<div style="text-align:center;padding:40px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);max-width:360px;width:90%">'+
+    '<div style="font-size:40px;margin-bottom:12px">❌</div>'+
+    '<div style="font-size:18px;font-weight:700;color:#334155;margin-bottom:8px">Token inválido</div>'+
+    '<div style="font-size:14px;color:#64748B">Verifique o link recebido pelo WhatsApp.</div>'+
+    '</div></div>';
+  var s=SM[r.st]||{};
+  var canCollect=r.st==='approved';
+  var canDeliver=r.st==='in_transit';
+  var collectBtn=canCollect?
+    '<div style="margin-top:16px;padding:14px;background:#F0FDF4;border-radius:10px;border:1px solid #BBF7D0">'+
+    '<div style="font-size:12px;font-weight:700;color:#15803D;margin-bottom:10px">📷 Foto de Coleta</div>'+
+    '<input type="file" accept="image/*" capture="environment" style="font-size:13px;margin-bottom:8px;display:block" onchange="onCollectPhoto(this,\''+r.id+'\')">'+
+    '<div id="collect-prev">'+(r.collectPhoto?'<div style="font-size:11px;color:#10B981;font-weight:600">✓ '+r.collectPhoto+'</div>':'')+'</div>'+
+    '<button class="btn btn-s" style="margin-top:10px;width:100%" onclick="confirmCollect(\''+r.id+'\')"'+(r.collectPhoto?'':' disabled')+'>✓ Confirmar Coleta</button>'+
+    '</div>':'';
+  var delivBtn=canDeliver?
+    '<div style="margin-top:16px;padding:14px;background:#EFF6FF;border-radius:10px;border:1px solid #BFDBFE">'+
+    '<div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:10px">📷 Foto de Coleta + Entrega</div>'+
+    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#475569;margin-bottom:4px">Foto de coleta:</div>'+
+    '<input type="file" accept="image/*" capture="environment" style="font-size:13px;display:block" onchange="onCollectPhoto(this,\''+r.id+'\')">'+
+    '<div id="collect-prev">'+(r.collectPhoto?'<div style="font-size:11px;color:#10B981;font-weight:600">✓ '+r.collectPhoto+'</div>':'')+'</div></div>'+
+    '<div style="margin-bottom:8px"><div style="font-size:11px;color:#475569;margin-bottom:4px">Foto de entrega:</div>'+
+    '<input type="file" accept="image/*" capture="environment" style="font-size:13px;display:block" onchange="onDeliveryPhoto(this,\''+r.id+'\')">'+
+    '<div id="delivery-prev">'+(r.deliveryPhoto?'<div style="font-size:11px;color:#10B981;font-weight:600">✓ '+r.deliveryPhoto+'</div>':'')+'</div></div>'+
+    '<button id="confirm-delivery-btn" class="btn btn-s" style="margin-top:10px;width:100%" onclick="confirmDelivery(\''+r.id+'\')"'+(r.collectPhoto&&r.deliveryPhoto?'':' disabled')+'>✓ Confirmar Entrega</button>'+
+    '</div>':'';
+  return'<div style="min-height:100vh;background:#F8FAFC;padding:20px 0">'+
+    '<div style="max-width:480px;margin:0 auto;padding:0 16px">'+
+    '<div style="text-align:center;margin-bottom:20px">'+
+    '<div style="font-size:22px;font-weight:800;color:#1E293B">LogiFlow</div>'+
+    '<div style="font-size:12px;color:#64748B">Portal do Motorista</div></div>'+
+    '<div style="background:#fff;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,.07);padding:20px;margin-bottom:16px">'+
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">'+
+    '<div style="width:44px;height:44px;border-radius:50%;background:#1E3A5F;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px">🚚</div>'+
+    '<div><div style="font-size:15px;font-weight:700;color:#1E293B">'+r.driverName+'</div>'+
+    '<div style="font-size:11.5px;color:#64748B">Token: <span style="font-family:monospace;font-weight:700">'+r.driverToken+'</span></div></div></div>'+
+    '<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;background:'+s.col+'22;color:'+s.col+'">'+s.l+'</div>'+
+    '</div>'+
+    '<div style="background:#fff;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,.07);padding:20px">'+
+    '<div style="font-size:14px;font-weight:700;color:#1E293B;margin-bottom:12px">'+r.mat+'</div>'+
+    '<div style="font-size:11.5px;color:#64748B;margin-bottom:6px">📍 Origem: <span style="color:#334155;font-weight:600">'+r.orig+'</span></div>'+
+    '<div style="font-size:11.5px;color:#64748B;margin-bottom:6px">🏁 Destino: <span style="color:#334155;font-weight:600">'+r.dest+'</span></div>'+
+    '<div style="font-size:11.5px;color:#64748B">📅 Data: <span style="color:#334155;font-weight:600">'+D(r.dt)+'</span></div>'+
+    collectBtn+delivBtn+
+    (r.st==='completed'?'<div style="margin-top:16px;padding:14px;background:#F0FDF4;border-radius:10px;text-align:center"><div style="font-size:24px">🎉</div><div style="font-size:14px;font-weight:700;color:#15803D;margin-top:6px">Entrega Concluída!</div></div>':'')+
+    '</div></div></div>';
+}
 
 var VEHICLES=[
   {type:'moto',label:'Moto',maxKg:10,maxM3:0.027},
@@ -786,6 +1132,7 @@ function buscarCEP(pfx){
       if(d.erro){alert('CEP não encontrado');return;}
       function s(id,v){var el=document.getElementById(pfx+'-'+id);if(el)el.value=v||'';}
       s('rua',d.logradouro);s('bairro',d.bairro);s('cidade',d.localidade);s('uf',d.uf);
+      if(pfx==='dest')updateFreightSuggestion();
     })
     .catch(function(){if(load)load.style.display='none';alert('Erro ao buscar CEP.');});
 }
@@ -796,7 +1143,7 @@ function calcDims(){
   var peso=parseFloat((document.getElementById('dim-peso')||{}).value)||0;
   var res=document.getElementById('dim-result');
   if(!res)return;
-  if(!comp||!larg||!alt||!peso){res.style.display='none';return;}
+  if(!comp||!larg||!alt||!peso){res.style.display='none';S._vehicle=null;var fr=document.getElementById('freight-result');if(fr)fr.style.display='none';return;}
   var volM3=(comp*larg*alt)/1000000;
   var veiculo=null;
   for(var i=0;i<VEHICLES.length;i++){if(peso<=VEHICLES[i].maxKg&&volM3<=VEHICLES[i].maxM3){veiculo=VEHICLES[i];break;}}
@@ -807,8 +1154,12 @@ function calcDims(){
     '<div>📦 <strong>Volume calculado:</strong> '+volM3.toFixed(4)+' m³ | Peso: '+peso+' kg</div>'+
     '<div style="margin-top:5px">🚚 <strong>Veículo sugerido:</strong> '+veiculo.label+'</div>'+
     '</div>';
+  updateFreightSuggestion();
 }
 
+var _qp=new URLSearchParams(window.location.search);
+var _driverParam=_qp.get('driver');
+if(_driverParam){S.view='driver';S.driverToken=_driverParam;}
 render();
 </script>
 </body>
