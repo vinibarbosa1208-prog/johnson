@@ -286,7 +286,7 @@ var PM={
   high:{l:"Alta",c:"pr-h",col:"#F59E0B"},
   urgent:{l:"Urgente",c:"pr-u",col:"#EF4444"},
 };
-var S={user:null,view:"dashboard",modal:null,fs:"",fc:"",q:"",tab:"all",waAlert:null,driverToken:null,collectPhotoPreview:null,deliveryPhotoPreview:null,reqs:[
+var S={user:null,view:"dashboard",modal:null,fs:"",fc:"",q:"",tab:"all",waAlert:null,driverToken:null,collectPhotoPreview:null,deliveryPhotoPreview:null,editingId:null,exportDateFrom:'',exportDateTo:'',exportStatus:'',gestorFilter:null,reqs:[
   {id:"SOL-001",mat:"Rolamento SKF 6205 2RS C3",orig:"Filial São Paulo",dest:"Planta Industrial RJ",p:"urgent",cid:1,val:450,dt:"2025-06-15",cc:"CC-MAN-101",nt:"Peça crítica — parada de linha iminente.",rid:1,rn:"Carlos Mendes",dep:"Manutenção Industrial",st:"pending_manager",cd:"2025-05-10 08:32",h:[{ts:"2025-05-10 08:32",a:"Carlos Mendes",ac:"Solicitação criada",n:""}]},
   {id:"SOL-002",mat:"Válvula Hidráulica Parker VSD-200",orig:"Fornecedor BH MG",dest:"Planta Industrial SP",p:"high",cid:2,val:680,dt:"2025-06-18",cc:"CC-OPS-202",nt:"Substituição preventiva plano Q2.",rid:1,rn:"Carlos Mendes",dep:"Manutenção Industrial",st:"pending_carrier",cd:"2025-05-08 14:15",h:[{ts:"2025-05-08 14:15",a:"Carlos Mendes",ac:"Solicitação criada",n:""},{ts:"2025-05-09 09:00",a:"Ana Paula Costa",ac:"Aprovado pelo Gestor",n:"Prioritário. Liberar imediatamente."}]},
   {id:"SOL-003",mat:"Motor Elétrico WEG W22 5CV Trifásico",orig:"Depósito Porto Alegre RS",dest:"Filial São Paulo",p:"normal",cid:3,val:1200,dt:"2025-06-20",cc:"CC-ENG-303",nt:"",rid:1,rn:"Carlos Mendes",dep:"Manutenção Industrial",st:"approved",cd:"2025-05-07 11:00",h:[{ts:"2025-05-07 11:00",a:"Carlos Mendes",ac:"Solicitação criada",n:""},{ts:"2025-05-08 08:30",a:"Ana Paula Costa",ac:"Aprovado pelo Gestor",n:"Aprovado."},{ts:"2025-05-08 16:00",a:"Nacional Cargas",ac:"Coleta aceita",n:""}]},
@@ -532,14 +532,18 @@ function vDash(){
     var appr=mine.filter(function(r){return r.st==='approved'||r.st==='in_transit'||r.st==='completed';}).length;
     var rej=mine.filter(function(r){return r.st==='rejected_manager'||r.st==='rejected_carrier';}).length;
     var recent=mine.slice().sort(function(a,b){return b.cd.localeCompare(a.cd);}).slice(0,5);
-    var rows=recent.length===0?'<tr><td colspan="5" style="text-align:center;padding:24px;color:#64748B">Nenhuma solicitação</td></tr>':
+    var sOpts2=Object.keys(SM).map(function(k){return'<option value="'+k+'"'+(S.exportStatus===k?' selected':'')+'>'+SM[k].l+'</option>';}).join('');
+    var rows=recent.length===0?'<tr><td colspan="6" style="text-align:center;padding:24px;color:#64748B">Nenhuma solicitação</td></tr>':
       recent.map(function(r){
         var s=SM[r.st]||{};
+        var canEdit=r.st==='pending_manager';
         return'<tr><td><span class="mono">'+r.id+'</span></td>'+
-          '<td class="bold" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.mat+'</td>'+
+          '<td class="bold" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.mat+'</td>'+
           '<td>'+bdg(s.c,s.col,s.l)+'</td>'+
           '<td style="color:#94A3B8">'+D(r.cd)+'</td>'+
           '<td><button class="btn btn-g btn-xs" onclick="openModal(this.dataset.id)" data-id="'+r.id+'">Ver</button></td>'+
+          '<td style="display:flex;gap:4px;flex-wrap:nowrap">'+
+          (canEdit?'<button class="btn btn-g btn-xs" onclick="S.editingId=this.dataset.id;S.view=\'new\';render()" data-id="'+r.id+'">✏️</button>':'')+(canEdit?'<button class="btn btn-d btn-xs" onclick="deleteReq(this.dataset.id)" data-id="'+r.id+'">🗑️</button>':'')+'</td>'+
           '</tr>';
       }).join('');
     return'<div class="mrow">'+
@@ -548,11 +552,21 @@ function vDash(){
       '<div class="mcard mc-g"><div class="mc-ico" style="background:#ECFDF5">✅</div><div class="mc-lbl">Aprovadas</div><div class="mc-val">'+appr+'</div></div>'+
       '<div class="mcard mc-r"><div class="mc-ico" style="background:#FEF2F2">❌</div><div class="mc-lbl">Reprovadas</div><div class="mc-val" style="'+(rej>0?'color:#DC2626':'')+'">'+rej+'</div></div>'+
       '</div>'+
+      '<div class="card" style="margin-bottom:12px">'+
+      '<div class="c-head" style="margin-bottom:10px"><div class="c-title">Exportar CSV</div></div>'+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">'+
+      '<div><div class="flbl" style="margin-bottom:3px">Data início</div><input type="date" class="finp" style="width:140px" value="'+S.exportDateFrom+'" onchange="S.exportDateFrom=this.value;render()"></div>'+
+      '<div><div class="flbl" style="margin-bottom:3px">Data fim</div><input type="date" class="finp" style="width:140px" value="'+S.exportDateTo+'" onchange="S.exportDateTo=this.value;render()"></div>'+
+      '<div><div class="flbl" style="margin-bottom:3px">Status</div><select class="fsel2" onchange="S.exportStatus=this.value;render()"><option value="">Todos</option>'+sOpts2+'</select></div>'+
+      '<button class="btn btn-p btn-sm" onclick="exportCSV()">⬇️ Exportar CSV</button>'+
+      '</div></div>'+
       '<div class="card"><div class="c-head"><div class="c-title">Últimas Solicitações</div>'+
       '<button class="btn btn-g btn-sm" onclick="go(&quot;reqs&quot;)">Ver todas →</button></div>'+
-      '<div class="tw"><table><thead><tr><th>ID</th><th>Material</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+      '<div class="tw"><table><thead><tr><th>ID</th><th>Material</th><th>Status</th><th>Data</th><th></th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   }
-  var mine=all;
+  var solics=USERS.filter(function(x){return x.role==='solicitante';});
+  var gfUser=S.gestorFilter?solics.filter(function(x){return x.id===S.gestorFilter;})[0]:null;
+  var mine=S.gestorFilter?all.filter(function(r){return r.rid===S.gestorFilter;}):all;
   var spent=mine.filter(function(r){return r.st==="approved"||r.st==="completed";}).reduce(function(s,r){return s+r.val;},0);
   var pend=mine.filter(function(r){return r.st==="pending_manager";}).length;
   var ok=mine.filter(function(r){return r.st==="approved"||r.st==="completed";}).length;
@@ -585,11 +599,29 @@ function vDash(){
         '<td><button class="btn btn-g btn-xs" onclick="openModal(this.dataset.id)" data-id="'+r.id+'">Abrir</button></td>'+
         "</tr>";
     }).join("");
-  return'<div class="mrow">'+
+  var gfOpts='<option value="">Todos os funcionários</option>'+solics.map(function(x){return'<option value="'+x.id+'"'+(S.gestorFilter===x.id?' selected':'')+'>'+x.name+' — '+x.dept+'</option>';}).join('');
+  var filterCard='<div class="card" style="margin-bottom:12px">'+
+    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<span style="font-size:13px;font-weight:600;color:#475569">👤 Filtrar por funcionário</span>'+
+    '<select class="fsel2" onchange="S.gestorFilter=this.value?parseInt(this.value):null;render()">'+gfOpts+'</select>'+
+    (gfUser?'<button class="btn btn-g btn-sm" onclick="S.gestorFilter=null;render()">✕ Limpar filtro</button>':'')+
+    '</div>'+
+    '</div>';
+  var estimCard=gfUser?
+    '<div class="mcard" style="background:#ECFDF5;border:1.5px solid #6EE7B7;grid-column:1/-1">'+
+    '<div class="mc-ico" style="background:#D1FAE5">💰</div>'+
+    '<div class="mc-lbl">Estimativa de gastos de '+gfUser.name+'</div>'+
+    '<div class="mc-val money" style="color:#059669">'+R(mine.filter(function(r){return r.st==='approved'||r.st==='completed'||r.st==='in_transit';}).reduce(function(s,r){return s+r.val;},0))+'</div>'+
+    '<div class="mc-foot"><span style="color:#64748B;font-size:11px">aprovadas + em trânsito + concluídas</span></div>'+
+    '</div>':
+    '';
+  return filterCard+
+    '<div class="mrow">'+
     '<div class="mcard mc-b"><div class="mc-ico" style="background:#EFF6FF">📋</div><div class="mc-lbl">Total Solicitações</div><div class="mc-val">'+mine.length+'</div><div class="mc-foot"><span class="tag tag-a">'+pc+" aguard. transp.</span></div></div>"+
     '<div class="mcard mc-g"><div class="mc-ico" style="background:#ECFDF5">✅</div><div class="mc-lbl">Total em Fretes</div><div class="mc-val money">'+R(spent)+'</div><div class="mc-foot"><span class="tag tag-g">'+ok+" aprovados</span></div></div>"+
     '<div class="mcard mc-a"><div class="mc-ico" style="background:#FFFBEB">⏳</div><div class="mc-lbl">Pend. Aprovação</div><div class="mc-val" style="'+(pend>0?"color:#D97706":"")+'">'+pend+'</div><div class="mc-foot">'+(pend>0?'<span class="tag tag-a">requer atenção</span>':'<span style="color:#94A3B8">sem pendências</span>')+"</div></div>"+
     '<div class="mcard mc-r"><div class="mc-ico" style="background:#FEF2F2">❌</div><div class="mc-lbl">Reprovações</div><div class="mc-val" style="'+(rej>0?"color:#DC2626":"")+'">'+rej+'</div><div class="mc-foot">'+(rej>0?'<span class="tag tag-r">'+Math.round(rej/Math.max(mine.length,1)*100)+"% do total</span>":'<span style="color:#94A3B8">nenhuma</span>')+"</div></div>"+
+    estimCard+
     '</div><div class="g2" style="margin-bottom:12px">'+
     '<div class="card" style="margin-bottom:0"><div class="c-head"><div><div class="c-title">Volume por Transportadora</div><div class="c-sub">Solicitações por parceiro</div></div></div><div class="bch">'+bars+"</div></div>"+
     '<div class="card" style="margin-bottom:0"><div class="c-head"><div><div class="c-title">Pipeline de Status</div></div></div>'+sBars+"</div></div>"+
@@ -763,39 +795,52 @@ function vReports(){
 }
 function vNew(){
   var u=S.user;
-  var cOpts=CARS.map(function(c){return'<option value="'+c.id+'">'+c.name+' (⭐ '+c.stars+')</option>';}).join("");
+  var ed=S.editingId?S.reqs.filter(function(x){return x.id===S.editingId;})[0]:null;
+  var eo=ed&&ed.origObj?ed.origObj:{};
+  var edo=ed&&ed.destObj?ed.destObj:{};
+  function pv(v){return v||'';}
+  function sel(name,val){
+    return'<option value="low"'+(val==='low'?' selected':'')+'>Baixa</option>'+
+      '<option value="normal"'+(val==='normal'?' selected':'')+'>Normal</option>'+
+      '<option value="high"'+(val==='high'?' selected':'')+'>Alta</option>'+
+      '<option value="urgent"'+(val==='urgent'?' selected':'')+'>Urgente</option>';
+  }
+  var cOpts=CARS.map(function(c){return'<option value="'+c.id+'"'+(ed&&ed.cid===c.id?' selected':'')+'>'+c.name+' (⭐ '+c.stars+')</option>';}).join("");
+  var title=ed?'✏️ Editar Solicitação '+ed.id:'Nova Solicitação';
+  var submitLbl=ed?'💾 Salvar Alterações':'→ Enviar Solicitação';
   return'<div class="card" style="max-width:700px">'+
-    '<div class="alert al-i" style="margin-bottom:16px">ℹ️ Preencha o formulário. Após envio, a solicitação será encaminhada ao gestor.</div>'+
+    '<div style="font-size:15px;font-weight:700;color:#1E293B;margin-bottom:12px">'+title+'</div>'+
+    '<div class="alert al-i" style="margin-bottom:16px">ℹ️ '+(ed?'Edite os campos e salve. A solicitação permanece aguardando aprovação.':'Preencha o formulário. Após envio, a solicitação será encaminhada ao gestor.')+'</div>'+
     '<form id="nform" onsubmit="submitForm(event)">'+
     '<div class="fsec"><div class="fsec-title">Dados do Material</div>'+
     '<div class="fgrid">'+
-    '<div class="fgrp f-full"><label class="flbl">Material / Peça <em>*</em></label><input class="finp" name="mat" placeholder="Ex: Rolamento SKF 6205 2RS" required></div>'+
+    '<div class="fgrp f-full"><label class="flbl">Material / Peça <em>*</em></label><input class="finp" name="mat" placeholder="Ex: Rolamento SKF 6205 2RS" value="'+pv(ed&&ed.mat)+'" required></div>'+
     '</div></div>'+
     '<div class="fsec"><div class="fsec-title">Endereço de Origem</div>'+
     '<div class="fgrid">'+
     '<div class="fgrp"><label class="flbl">CEP Origem <em>*</em></label>'+
     '<div style="display:flex;gap:6px;align-items:center">'+
-    '<input class="finp" id="orig-cep" placeholder="00000-000" maxlength="9" oninput="cepIn(this,\'orig\')" required style="flex:1">'+
+    '<input class="finp" id="orig-cep" placeholder="00000-000" maxlength="9" oninput="cepIn(this,\'orig\')" value="'+pv(eo.cep)+'" required style="flex:1">'+
     '<span id="orig-loading" style="display:none;color:#64748B;font-size:12px">⏳</span></div></div>'+
-    '<div class="fgrp"><label class="flbl">Rua / Logradouro <em>*</em></label><input class="finp" id="orig-rua" placeholder="Preenchido pelo CEP" required></div>'+
-    '<div class="fgrp"><label class="flbl">Número <em>*</em></label><input class="finp" id="orig-num" placeholder="Ex: 123" required></div>'+
-    '<div class="fgrp"><label class="flbl">Complemento</label><input class="finp" id="orig-comp" placeholder="Apto, Sala..."></div>'+
-    '<div class="fgrp"><label class="flbl">Bairro</label><input class="finp" id="orig-bairro" placeholder="Preenchido pelo CEP"></div>'+
-    '<div class="fgrp"><label class="flbl">Cidade</label><input class="finp" id="orig-cidade" placeholder="Preenchido pelo CEP"></div>'+
-    '<div class="fgrp"><label class="flbl">UF</label><input class="finp" id="orig-uf" placeholder="SP" maxlength="2"></div>'+
+    '<div class="fgrp"><label class="flbl">Rua / Logradouro <em>*</em></label><input class="finp" id="orig-rua" placeholder="Preenchido pelo CEP" value="'+pv(eo.rua)+'" required></div>'+
+    '<div class="fgrp"><label class="flbl">Número <em>*</em></label><input class="finp" id="orig-num" placeholder="Ex: 123" value="'+pv(eo.num)+'" required></div>'+
+    '<div class="fgrp"><label class="flbl">Complemento</label><input class="finp" id="orig-comp" placeholder="Apto, Sala..." value="'+pv(eo.comp)+'"></div>'+
+    '<div class="fgrp"><label class="flbl">Bairro</label><input class="finp" id="orig-bairro" placeholder="Preenchido pelo CEP" value="'+pv(eo.bairro)+'"></div>'+
+    '<div class="fgrp"><label class="flbl">Cidade</label><input class="finp" id="orig-cidade" placeholder="Preenchido pelo CEP" value="'+pv(eo.cidade)+'"></div>'+
+    '<div class="fgrp"><label class="flbl">UF</label><input class="finp" id="orig-uf" placeholder="SP" maxlength="2" value="'+pv(eo.uf)+'"></div>'+
     '</div></div>'+
     '<div class="fsec"><div class="fsec-title">Endereço de Destino</div>'+
     '<div class="fgrid">'+
     '<div class="fgrp"><label class="flbl">CEP Destino <em>*</em></label>'+
     '<div style="display:flex;gap:6px;align-items:center">'+
-    '<input class="finp" id="dest-cep" placeholder="00000-000" maxlength="9" oninput="cepIn(this,\'dest\')" required style="flex:1">'+
+    '<input class="finp" id="dest-cep" placeholder="00000-000" maxlength="9" oninput="cepIn(this,\'dest\')" value="'+pv(edo.cep)+'" required style="flex:1">'+
     '<span id="dest-loading" style="display:none;color:#64748B;font-size:12px">⏳</span></div></div>'+
-    '<div class="fgrp"><label class="flbl">Rua / Logradouro <em>*</em></label><input class="finp" id="dest-rua" placeholder="Preenchido pelo CEP" required></div>'+
-    '<div class="fgrp"><label class="flbl">Número <em>*</em></label><input class="finp" id="dest-num" placeholder="Ex: 456" required></div>'+
-    '<div class="fgrp"><label class="flbl">Complemento</label><input class="finp" id="dest-comp" placeholder="Apto, Sala..."></div>'+
-    '<div class="fgrp"><label class="flbl">Bairro</label><input class="finp" id="dest-bairro" placeholder="Preenchido pelo CEP"></div>'+
-    '<div class="fgrp"><label class="flbl">Cidade</label><input class="finp" id="dest-cidade" placeholder="Preenchido pelo CEP"></div>'+
-    '<div class="fgrp"><label class="flbl">UF</label><input class="finp" id="dest-uf" placeholder="RJ" maxlength="2"></div>'+
+    '<div class="fgrp"><label class="flbl">Rua / Logradouro <em>*</em></label><input class="finp" id="dest-rua" placeholder="Preenchido pelo CEP" value="'+pv(edo.rua)+'" required></div>'+
+    '<div class="fgrp"><label class="flbl">Número <em>*</em></label><input class="finp" id="dest-num" placeholder="Ex: 456" value="'+pv(edo.num)+'" required></div>'+
+    '<div class="fgrp"><label class="flbl">Complemento</label><input class="finp" id="dest-comp" placeholder="Apto, Sala..." value="'+pv(edo.comp)+'"></div>'+
+    '<div class="fgrp"><label class="flbl">Bairro</label><input class="finp" id="dest-bairro" placeholder="Preenchido pelo CEP" value="'+pv(edo.bairro)+'"></div>'+
+    '<div class="fgrp"><label class="flbl">Cidade</label><input class="finp" id="dest-cidade" placeholder="Preenchido pelo CEP" value="'+pv(edo.cidade)+'"></div>'+
+    '<div class="fgrp"><label class="flbl">UF</label><input class="finp" id="dest-uf" placeholder="RJ" maxlength="2" value="'+pv(edo.uf)+'"></div>'+
     '</div></div>'+
     '<div class="fsec"><div class="fsec-title">Dimensões da Embalagem</div>'+
     '<div class="fgrid">'+
@@ -806,17 +851,17 @@ function vNew(){
     '</div><div id="dim-result" style="display:none;margin-top:10px"></div><div id="freight-result" style="display:none;margin-top:10px"></div></div>'+
     '<div class="fsec"><div class="fsec-title">Configuração do Frete</div>'+
     '<div class="fgrid">'+
-    '<div class="fgrp"><label class="flbl">Prioridade <em>*</em></label><select class="fsel" name="p"><option value="low">Baixa</option><option value="normal" selected>Normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div>'+
-    '<div class="fgrp"><label class="flbl">Data Desejada <em>*</em></label><input class="finp" name="dt" type="date" required></div>'+
+    '<div class="fgrp"><label class="flbl">Prioridade <em>*</em></label><select class="fsel" name="p">'+sel('p',ed?ed.p:'normal')+'</select></div>'+
+    '<div class="fgrp"><label class="flbl">Data Desejada <em>*</em></label><input class="finp" name="dt" type="date" value="'+pv(ed&&ed.dt)+'" required></div>'+
     '<div class="fgrp"><label class="flbl">Transportadora <em>*</em></label><select class="fsel" name="cid">'+cOpts+'</select></div>'+
-    '<div class="fgrp"><label class="flbl">Preço Sugerido (R$) <em>*</em></label><input class="finp" name="val" type="number" step="0.01" min="0" placeholder="350.00" required></div>'+
-    '<div class="fgrp"><label class="flbl">Centro de Custo</label><input class="finp" name="cc" placeholder="Ex: CC-MAN-101 (opcional)"></div>'+
+    '<div class="fgrp"><label class="flbl">Preço Sugerido (R$) <em>*</em></label><input class="finp" name="val" type="number" step="0.01" min="0" placeholder="350.00" value="'+pv(ed&&ed.val)+'" required></div>'+
+    '<div class="fgrp"><label class="flbl">Centro de Custo</label><input class="finp" name="cc" placeholder="Ex: CC-MAN-101 (opcional)" value="'+pv(ed&&ed.cc)+'"></div>'+
     '<div class="fgrp"><label class="flbl">Solicitante</label><input class="finp" value="'+u.name+'" disabled></div>'+
     '</div></div>'+
     '<div class="fsec"><div class="fsec-title">Observações</div>'+
-    '<div class="fgrp"><label class="flbl">Informações adicionais</label><textarea class="ftxt" name="nt" placeholder="Detalhes, restrições de horário, contatos..."></textarea></div></div>'+
-    '<div style="display:flex;gap:9px"><button type="submit" class="btn btn-p">→ Enviar Solicitação</button>'+
-    '<button type="button" class="btn btn-g" onclick="go(&quot;reqs&quot;)">Cancelar</button></div>'+
+    '<div class="fgrp"><label class="flbl">Informações adicionais</label><textarea class="ftxt" name="nt" placeholder="Detalhes, restrições de horário, contatos...">'+pv(ed&&ed.nt)+'</textarea></div></div>'+
+    '<div style="display:flex;gap:9px"><button type="submit" class="btn btn-p">'+submitLbl+'</button>'+
+    '<button type="button" class="btn btn-g" onclick="S.editingId=null;go(&quot;reqs&quot;)">Cancelar</button></div>'+
     '</form></div>';
 }
 function submitForm(e){
@@ -828,11 +873,51 @@ function submitForm(e){
   var origStr=origObj.rua+' '+origObj.num+(origObj.comp?' '+origObj.comp:'')+', '+origObj.bairro+', '+origObj.cidade+'/'+origObj.uf;
   var destStr=destObj.rua+' '+destObj.num+(destObj.comp?' '+destObj.comp:'')+', '+destObj.bairro+', '+destObj.cidade+'/'+destObj.uf;
   var vehEl=document.getElementById('veh');var vehicleLabel=vehEl?vehEl.options[vehEl.selectedIndex].text:'';
+  if(S.editingId){
+    var r=S.reqs.filter(function(x){return x.id===S.editingId;})[0];
+    if(r){
+      r.mat=fd.get("mat");r.orig=origStr;r.dest=destStr;r.origObj=origObj;r.destObj=destObj;
+      r.p=fd.get("p");r.cid=parseInt(fd.get("cid"));r.val=parseFloat(fd.get("val"));
+      r.dt=fd.get("dt");r.cc=fd.get("cc")||"";r.nt=fd.get("nt")||"";
+      if(vehicleLabel)r.vehicleLabel=vehicleLabel;
+      r.h.push({ts:nowStr(),a:S.user.name,ac:"Solicitação editada pelo solicitante",n:""});
+      notif("Solicitação "+r.id+" atualizada!","s");
+    }
+    S.editingId=null;S.view="reqs";render();return;
+  }
   var req={id:"SOL-00"+nextId++,mat:fd.get("mat"),orig:origStr,dest:destStr,origObj:origObj,destObj:destObj,p:fd.get("p"),cid:parseInt(fd.get("cid")),val:parseFloat(fd.get("val")),dt:fd.get("dt"),cc:fd.get("cc")||"",nt:fd.get("nt")||"",rid:S.user.id,rn:S.user.name,dep:S.user.dept,vehicleLabel:vehicleLabel,st:"pending_manager",cd:nowStr(),h:[{ts:nowStr(),a:S.user.name,ac:"Solicitação criada",n:""}]};
   S.reqs.unshift(req);
   S.view="reqs";
   notif("Solicitação "+req.id+" enviada ao gestor!","s");
   render();
+}
+function deleteReq(id){
+  if(!confirm("Excluir solicitação "+id+"? Esta ação não pode ser desfeita."))return;
+  S.reqs=S.reqs.filter(function(x){return x.id!==id;});
+  notif("Solicitação "+id+" excluída.","e");
+  render();
+}
+function exportCSV(){
+  var rows=S.reqs.filter(function(r){
+    if(r.rid!==S.user.id)return false;
+    if(S.exportStatus&&r.st!==S.exportStatus)return false;
+    if(S.exportDateFrom&&r.dt<S.exportDateFrom)return false;
+    if(S.exportDateTo&&r.dt>S.exportDateTo)return false;
+    return true;
+  });
+  var headers=['ID','Material','Origem','Destino','Veiculo','Preco Sugerido','Status','Data','Horario','Motorista','Recebedor','Observacoes'];
+  var csv='﻿'+headers.join(';')+'\n';
+  rows.forEach(function(r){
+    var orig=r.origObj?r.origObj.rua+' '+r.origObj.num+', '+r.origObj.cidade+'/'+r.origObj.uf:(r.orig||'');
+    var dest=r.destObj?r.destObj.rua+' '+r.destObj.num+', '+r.destObj.cidade+'/'+r.destObj.uf:(r.dest||'');
+    var line=[r.id,r.mat,orig,dest,r.vehicleLabel||'',(r.val||0).toFixed(2).replace('.',','),SM[r.st]?SM[r.st].l:'',r.dt||'',r.time||'',r.driverName||'',r.receiverName||'',r.nt||''].map(function(v){return'"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(';');
+    csv+=line+'\n';
+  });
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='solicitacoes_JE_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 function approveReq(id){
   var r=S.reqs.filter(function(x){return x.id===id;})[0];if(!r)return;
